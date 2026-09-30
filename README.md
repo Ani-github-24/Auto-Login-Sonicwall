@@ -25,7 +25,7 @@ A lightweight, event-driven Python script that automatically handles SonicWall c
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sonicwall-autologin.git
+git clone https://github.com/Ani-github-24/sonicwall-autologin.git
 cd sonicwall-autologin
 
 ```
