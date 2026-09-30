@@ -1,28 +1,32 @@
 # SonicWall Captive Portal Auto-Login
 
-A lightweight, event-driven Python script that automatically handles SonicWall captive portal authentication when connecting to your campus Wi-Fi or waking your computer from sleep.
+A lightweight, event-driven Python script that automatically bypasses the SonicWall captive portal when you connect to your campus Wi-Fi or wake your computer. It runs silently in the background, logs its activity, and sends a Windows desktop notification when it successfully connects.
 
 ---
 
 ## Features
 
-* **Hands-Free Authentication:** Detects captive portal redirection and logs in automatically.
-* **Battery-Friendly:** Runs only when triggered by network events or system unlock—no resource-heavy background loops.
-* **Secure Credentials:** Keeps your student ID and password isolated in a local `.env` file that is ignored by Git.
-* **Native Notifications:** Sends standard Windows toast notifications upon successful authentication or errors.
+* **Hands-Free Authentication:** Automatically detects the captive portal and logs in without opening a browser.
+* **Battery-Friendly & Event-Driven:** Runs only when triggered by a network connection or system unlock.
+* **Automated Windows Setup:** Includes a one-click setup script (`setup_task.py`) to configure Windows Task Scheduler automatically.
+* **Secure Credentials:** Keeps your username and password safe in a local, hidden `.env` file that is ignored by Git.
+* **Native Notifications & Logging:** Alerts you via Windows toast notifications and logs all connection attempts to a `login.log` file.
 
 ---
 
 ## Prerequisites
 
-* [Python 3.8+](https://www.python.org/downloads/) installed (ensure **"Add Python to PATH"** is checked during installation).
-* Git installed on your machine.
+* **Python 3.8+** (Ensure **"Add Python to PATH"** is checked during installation).
+* **Git** installed on your machine.
+* Windows OS (for Task Scheduler and native notifications).
 
 ---
 
 ## Installation & Setup
 
 ### 1. Clone the Repository
+
+Open your terminal or command prompt and run:
 
 ```bash
 git clone https://github.com/Ani-github-24/sonicwall-autologin.git
@@ -32,94 +36,82 @@ cd sonicwall-autologin
 
 ### 2. Install Dependencies
 
+Install the required Python libraries:
+
 ```bash
 pip install requests python-dotenv plyer
 
 ```
 
-*(Or via requirements file: `pip install -r requirements.txt`)*
+### 3. Configure Your Credentials
 
-### 3. Configure Credentials
-
-Create a `.env` file in the project root directory by copying the example template:
+Create a `.env` file in the project folder to store your credentials securely:
 
 ```bash
-cp .env.example .env
+copy .env.example .env
 
 ```
 
-Open `.env` and fill in your network credentials:
+Open the new `.env` file in a text editor and add your login details:
 
 ```ini
-SONICWALL_USER="your_student_id"
+SONICWALL_USER="your_username"
 SONICWALL_PASS="your_password"
 
 ```
 
-> **Security Warning:** Never commit your `.env` file to GitHub. Verify that `.env` is listed inside your `.gitignore` file.
+> **Security Warning:** Never commit your `.env` file to GitHub. Make sure both `.env` and `login.log` are listed in your `.gitignore` file.
 
-### 4. Adjust Firewall Endpoint (If Needed)
+### 4. Adjust the Firewall IP (If Needed)
 
-Open `auto_login.py` and ensure the `LOGIN_URL` and `PAYLOAD` keys match your campus gateway:
+Open `auto_login.py` and ensure the `LOGIN_URL` matches your specific campus gateway:
 
 ```python
-LOGIN_URL = "https://192.168.1.1/auth.html"
-PAYLOAD = {
-    "userName": USERNAME,
-    "password": PASSWORD,
-    "domain": "LocalDomain"  # Remove if your portal does not require a domain
-}
+LOGIN_URL = "https://192.168.1.1/auth.html" 
 
 ```
 
 ---
 
-## Automating on Windows (Task Scheduler)
+## Activating the Automation (Windows)
 
-To make the script run invisibly whenever you wake your computer or reconnect to Wi-Fi:
+You do not need to manually configure Windows Task Scheduler. You can use the included setup script to generate the rules automatically.
 
-1. Press `Win + R`, type **`taskschd.msc`**, and press Enter.
-2. In the right panel, click **Create Task...** (not Basic Task).
-3. Under the **General** tab:
-* Name: `SonicWall AutoLogin`
-* Select **Run only when user is logged on**.
+1. Open your terminal as an Administrator (optional but recommended).
+2. Navigate to your project folder.
+3. Run the setup script:
 
+```bash
+python setup_task.py
 
-4. Under the **Triggers** tab, add two triggers:
-* **Trigger 1 (Wake/Unlock):** Click *New...* $\rightarrow$ Begin the task: **On workstation unlock** $\rightarrow$ Click **OK**.
-* **Trigger 2 (Network Reconnect):** Click *New...* $\rightarrow$ Begin the task: **On an event**:
-* **Log:** `Microsoft-Windows-NetworkProfile/Operational`
-* **Source:** `NetworkProfile`
-* **Event ID:** `10000`
-* Click **OK**.
+```
 
-
-
-
-5. Under the **Actions** tab, click *New...*:
-* **Action:** `Start a program`
-* **Program/script:** `pythonw` *(Runs silently with no console window)*
-* **Add arguments:** `"C:\Path\To\sonicwall-autologin\auto_login.py"` *(Use full path in quotes)*
-* **Start in:** `C:\Path\To\sonicwall-autologin` *(Directory without quotes, needed to locate `.env`)*
-
-
-6. Under the **Conditions** tab:
-* **Uncheck** *Start the task only if the computer is on AC power* (ensures it runs on battery).
-* Leave network condition unchecked.
-
-
-7. Click **OK** to save.
+This will instantly create a background task named **SonicWall AutoLogin**. Windows will now silently execute `auto_login.py` whenever you wake your PC from sleep or connect to a new Wi-Fi network.
 
 ---
 
-## How It Works
+## Troubleshooting & Logs
 
-1. **Connectivity Probe:** Queries `[http://gstatic.com/generate_204](http://gstatic.com/generate_204)`. If the status code is `204`, normal internet access is available and the script exits immediately.
-2. **Authentication POST:** If intercepted (non-`204` response), the script dispatches a secure POST payload to the firewall gateway with your credentials.
-3. **Notification:** Uses the `plyer` library to deliver a desktop notification confirming that access has been restored.
+If you want to check if the script is working or see why a login failed, open the `login.log` file in the project folder. It records exactly what happens every time you connect:
+
+```text
+2023-10-25 08:30:00 - INFO - Script triggered. Checking connection...
+2023-10-25 08:30:03 - INFO - Captive portal detected. Sending login request...
+2023-10-25 08:30:04 - INFO - Successfully authenticated to SonicWall.
+
+```
+
+---
+
+## Files in this Repository
+
+* `auto_login.py` - The core authentication and notification script.
+* `setup_task.py` - The one-click Windows Task Scheduler configuration script.
+* `.env.example` - A template showing how to format your secure credentials.
+* `.gitignore` - Prevents Git from uploading your passwords and local logs.
 
 ---
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. Feel free to fork and modify for your own campus networks.
