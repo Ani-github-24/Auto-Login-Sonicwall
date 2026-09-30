@@ -1,47 +1,66 @@
 import os
+import time
 import requests
 import urllib3
+import logging
 from dotenv import load_dotenv
-from plyer import notification  # Add this new import
+from plyer import notification
 
-load_dotenv()
+# 1. Setup Logging and Paths (Crucial for Task Scheduler)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(script_dir, "login.log")
+
+logging.basicConfig(
+    filename=log_path,
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# 2. Load Credentials using absolute paths
+load_dotenv(os.path.join(script_dir, ".env"))
 USERNAME = os.getenv("SONICWALL_USER")
 PASSWORD = os.getenv("SONICWALL_PASS")
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-LOGIN_URL = "https://192.168.1.1/auth.html" 
+LOGIN_URL = "https://172.20.100.100:7806" 
 PAYLOAD = {
     "userName": USERNAME,
-    "password": PASSWORD,
+    "password": PASSWORD
 }
 
 def check_and_login():
+    # Give Windows 3 seconds to fully connect to the Wi-Fi adapter
+    time.sleep(3)
+    logging.info("Script triggered. Checking connection...")
+    
     try:
         test = requests.get("http://gstatic.com/generate_204", timeout=5)
         
         if test.status_code != 204:
-            # Captive portal detected, attempting login
+            logging.info("Captive portal detected. Sending login request...")
             response = requests.post(LOGIN_URL, data=PAYLOAD, verify=False)
             
             if response.status_code == 200:
-                # Success Notification
+                logging.info("Successfully authenticated to SonicWall.")
                 notification.notify(
                     title="SonicWall Auto-Login",
                     message="Successfully authenticated. Internet is connected!",
-                    app_icon=None,  # You can add a path to an .ico file here if you want
-                    timeout=5       # Notification stays for 5 seconds
+                    timeout=5 
                 )
             else:
-                # Failure Notification
+                logging.error(f"Login failed! HTTP Status: {response.status_code}")
                 notification.notify(
                     title="SonicWall Auto-Login Error",
                     message=f"Login failed! HTTP Status: {response.status_code}",
                     timeout=7
                 )
-        # We do nothing if status is 204, so it doesn't spam you when already connected.
+        else:
+            logging.info("Internet is already active. No login required.")
+            
     except Exception as e:
-        # Network error Notification
+        logging.error(f"Network error: {e}")
         notification.notify(
             title="SonicWall Script Error",
             message="Could not reach the network.",
